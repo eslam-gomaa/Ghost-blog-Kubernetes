@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghost
+  labels:
+    app: ghost
+    tier: blog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost
+      tier: blog
+  template:
+    metadata:
+      labels:
+        app: ghost
+        tier: blog
+    spec:
+      containers:
+      - name: gho2368
+        image: ghost:4.22.0-alpine
+        ports:
+            - containerPort: 2368
+        volumeMounts:
+            - name: ghost-blog-content
+              mountPath: /var/lib/ghost/content
+        env:
+        - name: NODE_ENV
+          value: "production"
+
+        - name: database__client
+          value: mysql
+        - name: database__connection__host
+          value: ghost-mysql
+        - name: database__connection__password
+          value: password22
+        - name: database__connection__database
+          value: ghostblog
+        - name: database__connection__user
+          value: ghost
+        # - name: GHOST_CONTENT
+        #   value: /var/lib/ghost
+        # - name: DB_USER
+        #   value: ghost
+        # - name: DB_PASSWORD
+        #   value: password
+        # - name: DB_NAME
+        #   value: ghostblog
+        - name: url
+          value: http://new-ghost.devops-caffe.com
+      volumes:
+        - name: ghost-blog-content
+          persistentVolumeClaim:
+            claimName: ghost-blog-content
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: ghost-blog-content
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 4Gi
+  storageClassName: nfs-client
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost
+spec:
+  selector:
+    app: ghost
+    tier: blog
+  ports:
+    - protocol: TCP
+      port: 80 # service port
+      targetPort: 2368 # Pod port
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ghost-blog
+  namespace: ghost
+  annotations:
+    kubernetes.io/ingress.class: "haproxy"
+spec:
+  rules:
+  - host: new-ghost.devops-caffe.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: ghost
+          servicePort: 80

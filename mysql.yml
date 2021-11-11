@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  labels:
+    app: ghost
+    tier: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost
+      tier: mysql
+  template:
+    metadata:
+      name: mysql
+      labels:
+        app: ghost
+        tier: mysql
+    spec:
+      containers:
+        - image: mysql:5.7
+          name: mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: password22
+            - name: MYSQL_USER
+              value: ghost
+            - name: MYSQL_PASSWORD
+              value: password22
+            - name: MYSQL_DATABASE
+              value: ghostblog
+          ports:
+            - containerPort: 3306
+              name: mysql-port
+          volumeMounts:
+            - name: ghost-blog-mysql
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: ghost-blog-mysql
+          persistentVolumeClaim:
+            claimName: ghost-blog-mysql
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: ghost-blog-mysql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+  storageClassName: nfs-client
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ghost
+    tier: mysql
+  name: ghost-mysql
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: ghost
+    tier: mysql
