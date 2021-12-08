@@ -10,3 +10,8 @@ kubectl apply -f mysql.yml -n ghost
 kubectl apply -f ghost.yml -n ghost
 ```
 
+```bash
+kubectl get all -n ghost
+```
+
+
