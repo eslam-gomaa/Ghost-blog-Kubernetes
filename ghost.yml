@@ -6,7 +6,7 @@ metadata:
     app: ghost
     tier: blog
 spec:
-  replicas: 1
+  # replicas: 1
   selector:
     matchLabels:
       app: ghost
@@ -18,10 +18,41 @@ spec:
         tier: blog
     spec:
       containers:
-      - name: gho2368
+      - name: ghost
         image: ghost:4.22.0-alpine
+        # Ghost health check endpoint
+        # https://github.com/TryGhost/Ghost/issues/11181#issuecomment-700619087
+        # curl -s 'http://localhost:8083/ghost/api/v3/admin/site/
+        # There is NO /health @ the moment
+        # workaround for Kubernetes --> https://github.com/TryGhost/Ghost/issues/11181#issuecomment-829906250
+        livenessProbe:
+          httpGet:
+            path: /ghost/api/v4/admin/site/
+            port: ghost-port
+            httpHeaders:
+            - name: X-Forwarded-Proto
+              value: https
+            - name: Host
+              value: new-ghost.devops-caffe.com
+        readinessProbe:
+          httpGet:
+            path: /ghost/api/v4/admin/site/
+            port: ghost-port
+            httpHeaders:
+            - name: X-Forwarded-Proto
+              value: https
+            - name: Host
+              value: new-ghost.devops-caffe.com
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
         ports:
-            - containerPort: 2368
+          - containerPort: 2368
+            name: ghost-port
         volumeMounts:
             - name: ghost-blog-content
               mountPath: /var/lib/ghost/content
@@ -55,6 +86,34 @@ spec:
             claimName: ghost-blog-content
 ---
 
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ghost
+  namespace: ghost
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ghost
+  minReplicas: 2
+  maxReplicas: 5
+  # targetCPUUtilizationPercentage: 50
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
